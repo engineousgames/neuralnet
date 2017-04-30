@@ -1,0 +1,24 @@
+/* latin */
+@font-face {
+	font-family: 'Hillel';
+	src: url('../fonts/HillelCLM-Medium.ttf') format('truetype');
+}
+
+/* latin */
+@font-face {
+	font-family: 'DejaVuSans';
+	src: url('../fonts/DejaVuSans.ttf') format('truetype');
+}
+
+/* latin */
+@font-face {
+	font-family: 'Romanuni';
+	src: url('../fonts/romanuni.ttf') format('truetype');
+}
+
+/* hebrew */
+@font-face {
+	font-family: 'Alef';
+	src: url('../fonts/VChiHjiAPQWXO24iGyJCThTbgVql8nDJpwnrE27mub0.woff2') format('woff2');
+	unicode-range: U+0590-05FF, U+20AA, U+25CC, U+FB1D-FB4F;
+}
