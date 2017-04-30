@@ -39,7 +39,7 @@ function Init()
 	
 	var canvas = document.getElementById("canvas");
 	//			var ctx = canvas.getContext("2d");
-
+	
 	if( !IsPhoneGap() )
 	{
 		canvas.addEventListener("mousedown", MouseHandler, false);
@@ -48,6 +48,13 @@ function Init()
 		document.body.addEventListener("mouseup", MouseHandler, false);
 		document.body.addEventListener("mousewheel", MouseHandler, false);
 		document.body.addEventListener("DOMMouseScroll", MouseHandler, false);
+	}
+	else
+	{
+		canvas.addEventListener("touchstart", TouchHandler, false);
+		canvas.addEventListener("touchcancel", TouchHandler, false);
+		canvas.addEventListener("touchmove", TouchHandler, false);
+		canvas.addEventListener("touchend", TouchHandler, false);
 	}
 
 	m_canvasWidth = canvas.width;
@@ -550,7 +557,7 @@ function HandleInput( event )
 		var touch = event.changedTouches[0];
 		
 		x = touch.pageX;
-		y = touch.pageY;		
+		y = touch.pageY;
 	}
 	else
 	{
