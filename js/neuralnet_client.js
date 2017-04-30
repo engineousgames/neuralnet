@@ -498,7 +498,7 @@ function Draw()
 			ctx.strokeStyle = m_darkBlue;
 			if( m_pPixelX.length > 0 )
 			{
-				ctx.lineWidth = window.devicePixelRatio * 10;
+				ctx.lineWidth = window.devicePixelRatio * 5;
 				ctx.save();
 				ctx.beginPath();
 				ctx.moveTo( m_pPixelX[0], m_pPixelY[0] );
