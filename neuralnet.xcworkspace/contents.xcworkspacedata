@@ -14,7 +14,7 @@
       location = "group:README.md">
    </FileRef>
    <FileRef
-      location = "group:index.html">
+      location = "group:/Programming/v4/neuralnet_numbers/index.html">
    </FileRef>
    <FileRef
       location = "group:assets">

@@ -39,7 +39,12 @@ function Init()
 	
 	var canvas = document.getElementById("canvas");
 	//			var ctx = canvas.getContext("2d");
-	
+
+	canvas.addEventListener("touchstart", TouchHandler, false);
+	canvas.addEventListener("touchcancel", TouchHandler, false);
+	canvas.addEventListener("touchmove", TouchHandler, false);
+	canvas.addEventListener("touchend", TouchHandler, false);
+
 	if( !IsPhoneGap() )
 	{
 		canvas.addEventListener("mousedown", MouseHandler, false);
@@ -51,10 +56,6 @@ function Init()
 	}
 	else
 	{
-		canvas.addEventListener("touchstart", TouchHandler, false);
-		canvas.addEventListener("touchcancel", TouchHandler, false);
-		canvas.addEventListener("touchmove", TouchHandler, false);
-		canvas.addEventListener("touchend", TouchHandler, false);
 	}
 
 	m_canvasWidth = canvas.width;
@@ -551,6 +552,8 @@ function HandleInput( event )
 		//log("HandleInput( "+event.type+", "+pTouch+", "+touchIndex+" )");
 	}
 	
+	var touchIndex = 0;
+	
 	// Get click position.
 	if( m_touchEvents )
 	{
@@ -572,11 +575,11 @@ function HandleInput( event )
 			y = event.y;
 		}
 		
-		var gameArea = document.getElementById('gameArea');
 		
-		x -= gameArea.offsetLeft;
-		y -= gameArea.offsetTop;
 	}
+	var gameArea = document.getElementById('gameArea');
+	x -= gameArea.offsetLeft;
+	y -= gameArea.offsetTop;
 	
 	if (event.type == "touchstart" || event.type == "mousedown" )
 	{
