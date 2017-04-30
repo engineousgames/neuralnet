@@ -98,11 +98,6 @@ function Init()
 	 Animate();
 	 Draw();
 	 })();
-	
-	if( DetectMobile().mobile )
-	{
-		Alert("You can't learn blind typing on a mobile device!");
-	}
 }
 
 var m_drawX = 0;
