@@ -532,7 +532,7 @@ function Draw()
 window.addEventListener('resize', ResizeGame, false);
 window.addEventListener('orientationchange', ResizeGame, false);
 
-function HandleInput( event, pTouch, touchIndex )
+function HandleInput( event )
 {
 	var x = 0;
 	var y = 0;
@@ -545,28 +545,12 @@ function HandleInput( event, pTouch, touchIndex )
 	}
 	
 	// Get click position.
-	if( pTouch )
+	if( m_touchEvents )
 	{
+		var touch = event.changedTouches[0];
 		
-		x = pTouch.pageX;
-		y = pTouch.pageY;
-		
-		var styleDetected = false;
-		
-  /*
-   // on touch event...
-   if( event.type.substring(0,5) == "pointer" )
-   {
-			styleDetected = true;
-			log("stylus detected");
-   }
-   */
-		
-		var gameArea = document.getElementById('gameArea');
-		
-		x -= gameArea.offsetLeft;
-		y -= gameArea.offsetTop;
-		
+		x = touch.pageX;
+		y = touch.pageY;		
 	}
 	else
 	{
@@ -879,17 +863,15 @@ function PassInput( event, key, x, y )
 
 var m_score = 0;
 
-document.addEventListener("touchstart", function(e){TouchHandler(e);}, false);
-document.addEventListener("touchcancel", function(e){TouchHandler(e);}, false);
-document.addEventListener("touchmove", function(e){TouchHandler(e);}, false);
-document.addEventListener("touchend", function(e){TouchHandler(e);}, false);
-
 window.addEventListener("keydown", KeyInput, false);
 window.addEventListener("keyup", KeyInput, false);
 
 function MouseHandler( event )
 {
-	HandleInput( event );
+	if( !m_touchEvents )
+	{
+		HandleInput( event );
+	}
 }
 
 

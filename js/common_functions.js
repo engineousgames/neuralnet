@@ -96,6 +96,11 @@ function log(msg) {
 			   }, 0);
 }
 
+canvas.addEventListener("touchstart", TouchHandler, false);
+canvas.addEventListener("touchcancel", TouchHandler, false);
+canvas.addEventListener("touchmove", TouchHandler, false);
+canvas.addEventListener("touchend", TouchHandler, false);
+
 
 function TouchHandler(event)
 {
