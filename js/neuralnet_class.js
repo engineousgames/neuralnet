@@ -69,7 +69,7 @@ var logNet = false;
 function NeuralNetwork()
 {
 	this._learningRate = 0.3;
-	this._inputMultiplier = 10;
+	this._inputMultiplier = 100;
 	
 	this._layers = [];
 	

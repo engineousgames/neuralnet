@@ -977,7 +977,7 @@ function InitNeuralNetwork()
 				counter++;
 			}
 		}
-		log( Math.floor( ( counter / pTrainingNumbers[j].length ) * 10000 ) / 100 );
+		log( "Number " + j + " " + Math.floor( ( counter / pTrainingNumbers[j].length ) * 10000 ) / 100 + "%" );
 	}
 
 	var stop = 0;
