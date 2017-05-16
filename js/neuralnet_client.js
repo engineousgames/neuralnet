@@ -23,13 +23,13 @@ if( localStorage.volume == undefined )
 var m_pKeyboardImage;
 var m_mobile = false;
 
-var m_numPixels = 20;
 var m_ppPixels = [];
 var m_pPixelX = [];
 var m_pPixelY = [];
 var m_blocksPerPixel = 1;
 var m_pInput = [];
 var m_pResults = [];
+var m_pReverseInput = []; // this will hold what the network sees for each number
 
 var m_mouseDown = false;
 
@@ -113,6 +113,7 @@ var m_drawy = 0;
 var m_drawSize = m_numBlocksWide-2;
 var m_pMainButtons = [];
 var m_numberButtonIndex = 0;
+var m_resultButtonIndex = 0;
 function InitButtons()
 {
 	var midX = m_canvasWidth / 2;
@@ -120,7 +121,7 @@ function InitButtons()
 	var buttonWidth = 9;
 	var buttonHeight = 3;
 
-	var buttonY = 1;
+	var buttonY = 0;
 	buttonWidth = 4;
 	
 	var buttonIndex = 0;
@@ -162,7 +163,7 @@ function InitButtons()
 		
 	}
 
-	buttonY += buttonHeight + 2;
+	buttonY += buttonHeight + 1;
 
 	AddButton( m_pMainButtons,
 			  2 + buttonWidth,
@@ -176,9 +177,10 @@ function InitButtons()
 	m_drawX = 1;
 	m_drawY = buttonY;
 	
-	/*
+
 	buttonY = ( m_numBlocksWide - 1 ) + m_drawY;
 	
+	m_resultButtonIndex = m_pMainButtons.length;
 	buttonWidth = 4;
 	for( var i = 0; i < 5; i++ )
 	{
@@ -187,7 +189,7 @@ function InitButtons()
 				  buttonY,
 				  buttonWidth,
 				  buttonWidth,
-				  "" + parseInt(i), function() { } );
+				  "", function() { } );
 		
 	}
 	buttonY += buttonWidth;
@@ -198,10 +200,9 @@ function InitButtons()
 				  buttonY,
 				  buttonWidth,
 				  buttonWidth,
-				  "" + parseInt(i+5), function() { } );
+				  "", function() { } );
 		
 	}
-	*/
 }
 
 function AddButton( pButtonArray, x, y, w, h, pText, pFunction )
@@ -509,6 +510,25 @@ function Draw()
 				ctx.stroke();
 				ctx.restore();
 			}
+			
+			// draw results
+			for( var buttonIndex = m_resultButtonIndex; buttonIndex < m_pMainButtons.length; buttonIndex++	)
+			{
+				var button = m_pMainButtons[buttonIndex];
+				var size = Math.floor(( button.m_drawWidth ) / m_numPixels);
+				var startX = button.m_drawX + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
+				var startY = button.m_drawY + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
+				for( var i = 0; i < m_pReverseInput[0].length; i++	)
+				{
+					var x = i % m_numPixels;
+					var y = Math.floor( i / m_numPixels );
+					
+					var value = ( m_pReverseInput[buttonIndex - m_resultButtonIndex][i] );
+					value = Math.floor( value * 255 );
+					ctx.fillStyle = "rgba("+value+", "+value+", "+value+","+1.0+")"
+					ctx.fillRect( startX +  y * size, startY + x * size, size, size );
+				}
+			}
 		}
 		
 		var d2 = new Date();
@@ -618,25 +638,29 @@ function ClearNumber()
 	m_pPixelY.length = 0;
 }
 
+function ConvertToPixelCoordinates( input )
+{
+	var pixel = Math.floor( input / ( m_blockSize * m_blocksPerPixel ) );
+	return pixel;
+}
+
 function DrawNumber( x, y )
 {
 	if( m_mouseDown )
 	{
 		x -= m_drawX * m_blockSize;
 		y -= m_drawY * m_blockSize;
-		var pixelX = Math.floor( x / ( m_blockSize * m_blocksPerPixel ) );
-		var pixelY = Math.floor( y / ( m_blockSize * m_blocksPerPixel ) );
-		
-		//log( "DrawNumber(" + x + "," + y + ") pixelX " + pixelX + " pixelY " + pixelY );
+
+		var pixelX = ConvertToPixelCoordinates( x );
+		var pixelY = ConvertToPixelCoordinates( y );
 		
 		if( ( pixelX >= 0 && pixelX < m_numPixels ) &&
 		   ( pixelY >= 0 && pixelY < m_numPixels ) )
 		{
-			m_pPixelX.push(x + ( m_drawX * m_blockSize ) );
-			m_pPixelY.push(y + ( m_drawY * m_blockSize ) );
-			
-			//m_ppPixels[pixelX][pixelY] = 1;
+			m_pPixelX.push( x + ( m_drawX * m_blockSize ) );
+			m_pPixelY.push( y + ( m_drawY * m_blockSize ) );
 		}
+
 	}
 }
 
@@ -674,49 +698,29 @@ function CalculateNumberSquares()
 
 	var drawSize = ( ( m_numBlocksWide - 2 ) * m_blockSize );
 	
-	var size = diffX;
+	var scale = diffX;
 	
 	if( diffY > diffX )
 	{
-		size = diffY;
+		scale = diffY;
 	}
 	
-	var offsetX = Math.floor( ( ( size - diffX ) * m_numPixels ) / ( 2 * size ) );
-	var offsetY = Math.floor( ( ( size - diffY ) * m_numPixels ) / ( 2 * size ) );
+	var offsetX = Math.floor( ( ( scale - diffX ) * m_numPixels ) / ( 2 * scale ) );
+	var offsetY = Math.floor( ( ( scale - diffY ) * m_numPixels ) / ( 2 * scale ) );
 	
 	// now calculate squares
 	var squareX, squareY;
 	var drawXBlockSize = ( m_drawX * m_blockSize );
 	var drawYBlockSize = ( m_drawY * m_blockSize );
 	var blockSize = ( m_blockSize * m_blocksPerPixel );
-	for( var i = 0; i < m_pPixelX.length; i++ )
+	for( var i = 0; i < m_pPixelX.length - 1; i++ )
 	{
-		var pixelX = m_pPixelX[i] - minX;
-		var pixelY = m_pPixelY[i] - minY;
+		var pixelX1 = m_pPixelX[i] - minX;
+		var pixelY1 = m_pPixelY[i] - minY;
+		var pixelX2 = m_pPixelX[i+1] - minX;
+		var pixelY2 = m_pPixelY[i+1] - minY;
 		
-		squareX = Math.floor( ( pixelX / size ) * m_numPixels ) + offsetX;
-		squareY = Math.floor( ( pixelY / size ) * m_numPixels ) + offsetY;
-
-		if( squareX > m_numPixels-1 )
-		{
-			squareX = m_numPixels-1;
-		}
-		if( squareY > m_numPixels-1 )
-		{
-			squareY = m_numPixels-1;
-		}
-		
-		AddPixel( squareX, squareY, 1 );
-
-		AddPixel( squareX+1, squareY, 0.4 );
-		AddPixel( squareX-1, squareY, 0.4 );
-		AddPixel( squareX, squareY+1, 0.4 );
-		AddPixel( squareX, squareY-1, 0.4 );
-
-		AddPixel( squareX+1, squareY+1, 0.25 );
-		AddPixel( squareX-1, squareY-1, 0.25 );
-		AddPixel( squareX-1, squareY+1, 0.25 );
-		AddPixel( squareX+1, squareY-1, 0.25 );
+		AddLine( scale, offsetX, offsetY, pixelX1, pixelY1, pixelX2, pixelY2 );
 	}
 	
 	m_pInput.length = 0;
@@ -739,6 +743,78 @@ function CalculateNumberSquares()
 	}
 	pString += "],";
 	log ( pString );
+}
+
+function AddLine( scale, offsetX, offsetY, x, y, prevX, prevY )
+{
+	var diffX = x - prevX;
+	var diffY = y - prevY;
+	
+	var largestDiff = Math.abs( diffX );
+	
+	var ratioX = 1.0;
+	var ratioY = 1.0;
+	
+	if( diffX != 0 )
+	{
+		ratioX = diffX / Math.abs( diffX );
+	}
+	if( diffY != 0 )
+	{
+		ratioY = diffY / Math.abs( diffY );
+	}
+	if( Math.abs( diffX ) > Math.abs( diffY ) )
+	{
+		ratioY = diffY / Math.abs(diffX);
+	}
+	else
+	{
+		largestDiff = Math.abs( diffY );
+		ratioX = diffX / Math.abs(diffY);
+	}
+	
+	log( "(" + x + ", " + y + ") (" + prevX + ", " + prevY + ") diffX " + diffX + " diffY " + diffY + " largestDiff " + largestDiff + " ratioX " + ratioX + " ratioY " + ratioY );
+	
+	//log( "DrawNumber(" + x + "," + y + ") pixelX " + pixelX + " pixelY " + pixelY );
+	
+	for( var i = 0; i < largestDiff; i++ )
+	{
+		var cx = prevX + ( i * ratioX );
+		var cy = prevY + ( i * ratioY );
+		
+		AddSquare( scale, offsetX, offsetY, cx, cy );
+	}
+}
+
+function AddSquare( scale, offsetX, offsetY, pixelX, pixelY )
+{
+	var squareX = Math.floor( ( pixelX / scale ) * m_numPixels ) + offsetX;
+	var squareY = Math.floor( ( pixelY / scale ) * m_numPixels ) + offsetY;
+	
+	if( squareX > m_numPixels-1 )
+	{
+		squareX = m_numPixels-1;
+	}
+	if( squareY > m_numPixels-1 )
+	{
+		squareY = m_numPixels-1;
+	}
+	
+	var pencilStrength = 0.35;
+	var strength2 = 0.25;
+	var strength3 = 0.15;
+	
+	AddPixel( squareX, squareY, pencilStrength );
+	
+	AddPixel( squareX+1, squareY, pencilStrength * strength2 );
+	AddPixel( squareX-1, squareY, pencilStrength * strength2 );
+	AddPixel( squareX, squareY+1, pencilStrength * strength2 );
+	AddPixel( squareX, squareY-1, pencilStrength * strength2 );
+	
+	AddPixel( squareX+1, squareY+1, pencilStrength * strength3 );
+	AddPixel( squareX-1, squareY-1, pencilStrength * strength3 );
+	AddPixel( squareX-1, squareY+1, pencilStrength * strength3 );
+	AddPixel( squareX+1, squareY-1, pencilStrength * strength3 );
 }
 
 function AddPixel( x, y, value )
@@ -785,6 +861,8 @@ var g_mouseOldX = [[0], [0]];
 var g_mouseOldY = [[0], [0]];
 var g_mouseStartX = [0, 0];
 var g_mouseStartY = [0, 0];
+var g_prevMouseX = 0;
+var g_prevMouseY = 0;
 function PassInput( event, key, x, y )
 {
 	// check how long is has been since this menu first showed up on the screen
@@ -839,7 +917,7 @@ function PassInput( event, key, x, y )
 			
 			m_mouseDown = true;
 			ClearNumber();
-			DrawNumber( x, y );
+			DrawNumber( x, y, x, y );
 		}
 		else if( event == "mouseup" )
 		{
@@ -849,7 +927,7 @@ function PassInput( event, key, x, y )
 			
 			CalculateNumberSquares();
 			
-			if( !m_train )
+			if( m_type != ClientType.CREATE )
 			{
 				m_pResults = nn.ForwardPropagation( m_pInput );
 				log( m_pResults );
@@ -858,17 +936,21 @@ function PassInput( event, key, x, y )
 		}
 		else if( event == "mousemove" )
 		{
-			DrawNumber( x, y );
+			DrawNumber( x, y, g_prevMouseX, g_prevMouseY );
 		}
 		
 		if( event == "mouseup" || event == "mousemove" || event == "mousedown" )
 		{
+			g_prevMouseX = x;
+			g_prevMouseY = y;
+
 			g_mousePrevX[key] = g_mouseX[key];
 			g_mousePrevY[key] = g_mouseY[key];
 			g_mouseX[key] = x;
 			g_mouseY[key] = y;
 		}
 	}
+	
 }
 
 var m_score = 0;
@@ -927,23 +1009,116 @@ function Test()
 	var stop = 0;
 }
 
-var m_train = false;
+var ClientType = {
+	"PLAY": 0,
+	"TRAIN": 1,
+	"CREATE": 2
+};
+
+
+var m_type = ClientType.PLAY; // 0 - play, 1 train, 2 create training set
 function InitNeuralNetwork()
 {
 	nn = new NeuralNetwork();
-	nn.Create( 400, [50,25,10] );
+	nn.Create( (m_numPixels*m_numPixels), [50,25,10] ); // input size, layers, # of passes
+//	nn.Create( 400, [50,25,10], 50 );
 	var output;
 	
 	var input = [];
 	var ideals = [];
 	
-	for( var i = 0; i < 100; i++ )
+	if( !m_useMNIST )
 	{
-		for( var j = 0; j < 10; j++ )
+		for( var i = 0; i < 200; i++ )
 		{
-			input.push( pTrainingNumbers[j][i] );
+			for( var j = 0; j < 10; j++ )
+			{
+				input.push( pTrainingNumbers[j][i] );
+			}
+			
+			ideals.push( [1,0,0,0,0,0,0,0,0,0] );
+			ideals.push( [0,1,0,0,0,0,0,0,0,0] );
+			ideals.push( [0,0,1,0,0,0,0,0,0,0] );
+			ideals.push( [0,0,0,1,0,0,0,0,0,0] );
+			ideals.push( [0,0,0,0,1,0,0,0,0,0] );
+			ideals.push( [0,0,0,0,0,1,0,0,0,0] );
+			ideals.push( [0,0,0,0,0,0,1,0,0,0] );
+			ideals.push( [0,0,0,0,0,0,0,1,0,0] );
+			ideals.push( [0,0,0,0,0,0,0,0,1,0] );
+			ideals.push( [0,0,0,0,0,0,0,0,0,1] );
 		}
-		
+	}
+	
+	if( m_type == ClientType.TRAIN )
+	{
+		if( m_useMNIST )
+		{
+			
+		}
+		else
+		{
+			nn.LoadWeights( pNetworkWeights );
+		}
+
+		var trainingSetPasses = 0;
+		var lowestPercent = 100;
+		do
+		{
+			if( m_useMNIST )
+			{
+				for( var i = 0; i < pMNISTTrainingData.length; i++ )
+				{
+					for( var j = 0; j < pMNISTTrainingData[i].length; j++ )
+					{
+						pMNISTTrainingData[i][j] = pMNISTTrainingData[i][j] / 255.0;
+					}
+				}
+				
+				nn.TrainNetwork( pMNISTTrainingData, pMNISTTrainingTargets, 10 );
+			}
+			else
+			{
+				nn.TrainNetwork( input, ideals, 1 );
+				
+				lowestPercent = 100;
+				for( var j = 0; j < 10; j++ )
+				{
+					var counter = 0;
+					for( var i = 0; i < pTrainingNumbers[j].length; i++ )
+					{
+						var result = nn.ForwardPropagation( pTrainingNumbers[j][i] );
+						if( result[j] > 0.75 )
+						{
+							counter++;
+						}
+					}
+					var percent = counter / pTrainingNumbers[j].length;//Math.floor( ( counter / pTrainingNumbers[j].length ) * 10000 ) / 100;
+					log( "Number " + j + " " + percent + "%" );
+					if( lowestPercent > percent )
+					{
+						lowestPercent = percent;
+					}
+				}
+				trainingSetPasses++;
+				log( "lowestPercent " + lowestPercent + " passes " + trainingSetPasses );
+			}
+		}
+		while( lowestPercent < 99.9 && trainingSetPasses < 200 );
+	}
+	else
+	{
+		if( m_useMNIST )
+		{
+			nn.LoadWeights( pNetworkWeights2 );
+		}
+		else
+		{
+			nn.LoadWeights( pNetworkWeights );
+		}
+	}
+	
+	if( m_useMNIST )
+	{
 		ideals.push( [1,0,0,0,0,0,0,0,0,0] );
 		ideals.push( [0,1,0,0,0,0,0,0,0,0] );
 		ideals.push( [0,0,1,0,0,0,0,0,0,0] );
@@ -954,32 +1129,71 @@ function InitNeuralNetwork()
 		ideals.push( [0,0,0,0,0,0,0,1,0,0] );
 		ideals.push( [0,0,0,0,0,0,0,0,1,0] );
 		ideals.push( [0,0,0,0,0,0,0,0,0,1] );
-	}
-	
-	if( m_train )
-	{
-		nn.TrainNetwork( input, ideals );
+
 	}
 	else
 	{
-		nn.LoadWeights( pNetworkWeights );
-//		nn.LoadWeights( pNetworkWeights2 );
-	}
-	
-	for( var j = 0; j < 10; j++ )
-	{
-		var counter = 0;
-		for( var i = 0; i < pTrainingNumbers[j].length; i++ )
-		{
-			var result = nn.ForwardPropagation( pTrainingNumbers[j][i] );
-			if( result[j] > 0.75 )
-			{
-				counter++;
-			}
-		}
-		log( "Number " + j + " " + Math.floor( ( counter / pTrainingNumbers[j].length ) * 10000 ) / 100 + "%" );
 	}
 
+	//ideals[0] = [0.01567028417839327, 0.000011936902844202932, 0.022398464213300665, 0.00015969860469946463, 0.00028629101363449955, 0.00005170126269103917, 0.04444998540660994, 0.000040972374718477764, 0.6426484174774935, 0.000007715375757012883];
+	for( var i = 0; i < 10; i++ )
+	{
+		var lowest = 0;
+		var highest = 0;
+		var pReverseResult = nn.ReverseForwardPropagation( ideals[i] );
+		for( var j = 0; j < pReverseResult.length; j++ )
+		{
+			if( pReverseResult[j] < lowest )
+			{
+				//lowest = pReverseResult[j];
+				pReverseResult[j] = 0;
+			}
+			if( pReverseResult[j] > highest )
+			{
+				highest = pReverseResult[j];
+			}
+		}
+		for( var j = 0; j < pReverseResult.length; j++ )
+		{
+			pReverseResult[j] = ( pReverseResult[j] + Math.abs(lowest) ) / ( Math.abs( lowest ) + highest );
+			//pReverseResult[j] = Sigmoid( pReverseResult[j] );
+		}
+		m_pReverseInput.push( pReverseResult );
+		
+		var testResult = nn.ForwardPropagation( pReverseResult );
+		var number = 0;
+		for( var j = 0; j < testResult.length; j++ )
+		{
+			if( testResult[j] > 0.5 )
+			{
+				number = j;
+			}
+		}
+		log( "Expected number " + i + " got number " + number + " percentage " + testResult[number] );
+	}
+	
+	if( 0 )
+	{
+		if( m_useMNIST )
+		{
+			for( var i = 0; i < 10; i++ )
+			{
+				m_pReverseInput[i] = pMNISTTrainingData[i];
+				for( var j = 0; j < m_pReverseInput[i].length; j++ )
+				{
+					m_pReverseInput[i][j] /= 255.0;
+				}
+			}
+		}
+		else
+		{
+			for( var i = 0; i < 10; i++ )
+			{
+				m_pReverseInput[i] = input[i];
+			}
+		}
+	}
+	
 	var stop = 0;
 
 }

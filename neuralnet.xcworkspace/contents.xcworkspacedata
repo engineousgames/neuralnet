@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:mnist_parser.py">
+   </FileRef>
+   <FileRef
       location = "group:icon.png">
    </FileRef>
    <FileRef

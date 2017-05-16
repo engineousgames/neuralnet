@@ -16,8 +16,16 @@ var m_darkBlue = "#244892";
 var m_lightBlue = "#12a8d8";
 var m_lightGray = "#a0a0a0";
 
-var m_numBlocksWide = 22;
-var m_numBlocksHigh = 40;
+var m_useMNIST = false;
+
+var m_numPixels = 20;
+if( m_useMNIST )
+{
+	m_numPixels = 28;
+}
+
+var m_numBlocksWide = m_numPixels + 2;//22;
+var m_numBlocksHigh = m_numBlocksWide * 2;//40;
 var m_blockSize;
 
 var m_gameOffsetX = 0;

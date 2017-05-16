@@ -7,6 +7,7 @@ function Neuron()
 	// Variables for backpropagation.
 	this._output = 0;
 	this._deltas = [];
+	this._prevDeltas = [];
 	this._gradient = 0;
 	
 	this.Init = function( numInputs )
@@ -21,7 +22,14 @@ function Neuron()
 
 	this.Sigmoid = function( z )
 	{
-		g = 1.0 / ( 1.0 + Math.exp( -z ) );
+		var g = 1.0 / ( 1.0 + Math.exp( -z ) );
+		return g;
+	}
+	
+	this.ReverseSigmoid = function( z )
+	{
+		var g = -( Math.log( ( 1 / z ) - 1 ) );
+//		var g = -( Math.log( Math.abs( z ) ) / Math.log( Math.E ) );
 		return g;
 	}
 	
@@ -68,8 +76,14 @@ var logNet = false;
 
 function NeuralNetwork()
 {
-	this._learningRate = 0.3;
-	this._inputMultiplier = 100;
+	// 0.75 - 100+
+	// 0.55 - 300+
+	// 0.5 - 73 passes
+	// 0.45 - lowestPercent 99.16 passes 176
+	// 0.25 - 100+
+	
+	this._learningRate = 0.5; // 0.25 too slow. 0.75 too slow.
+	this._inputMultiplier = 10;
 	
 	this._layers = [];
 	
@@ -113,7 +127,7 @@ function NeuralNetwork()
 		var result = input.slice();
 
 		// we pass the input to the first layer, and then the result into each subsequent layer
-		for(var i = 0, len = this._layers.length; i < len; i++)
+		for(var i = 0; i < this._layers.length; i++)
 		{
 			result = this._layers[i].Parse(result);
 		}
@@ -122,17 +136,66 @@ function NeuralNetwork()
 		// console.log(result);
 		return result;
 	}
+	
+	this.ReverseForwardPropagation = function( input )
+	{
+		// clone the input so we can modify it as we propogate it through the array
+		var result = input.slice();
+		var result2 = [];
+
+		for(var i = this._layers.length-1; i >= 0; i--)
+		{
+			result2.length = 0;
+			var currentLayer = this._layers[i];
+			var numWeights = currentLayer._neurons[0]._weights.length;
+			for( var j = 0; j < numWeights; j++ )
+			{
+				var numResults = currentLayer._neurons.length;
+				for( var k = 0; k < numResults; k++ )
+				{
+					var neuron = currentLayer._neurons[k];
+					if( !result2[j] )
+					{
+						result2[j] = neuron._bias;
+					}
+					result2[j] += neuron._weights[j] * result[k];
+
+				}
+			}
+			result.length = 0;
+			for( var j = 0; j < result2.length; j++ )
+			{
+				//result[j] = neuron.ReverseSigmoid( result2[j] );
+				//result[j] = neuron.Sigmoid( result2[j] );
+				result[j] = result2[j];
+			}
+			
+			/*
+			 sum = -(Math.log(Math.abs(output[id])) / Math.log(Math.E));
+			 weightsSum = 0;
+			 for (iid in node.weights) {
+			 weightsSum += node.weights[iid];
+			 }
+			 input[layerIndex] = Math.abs(sum / weightsSum);
+
+			 */
+		}
+		
+		// at the end result should be the output of our entire neural network
+		// console.log(result);
+		return result;
+	}
 
 	// we use this function train out neural network
-	this.TrainNetwork = function( inputs, targets )
+	this.TrainNetwork = function( inputs, targets, inputMultiplier )
 	{
+		this._inputMultiplier = inputMultiplier;
 		
 		var loopCounter = 0;
 		var index = 0;
 		// cycle through our entire input / target pairs x amount of times
 		while( loopCounter < ( inputs.length * this._inputMultiplier ) )
 		{
-			index++;
 			index = index % inputs.length;
 			// train the values from a specific input / target pair
 			var error = this.PropagateInputTargetPair(inputs[index], targets[index]);
@@ -142,6 +205,7 @@ function NeuralNetwork()
 			{
 				log( "loopCounter " + loopCounter );
 			}
+			index++;
 			loopCounter++;
 		}
 	}
