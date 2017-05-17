@@ -1,5 +1,6 @@
 var GameState = {
 	"MAIN_MENU": 0,
+	"PREVIEW_DATA": 1
 };
 
 document.ontouchstart = function(e){
@@ -94,7 +95,10 @@ function Init()
 		}
 	}
 	
-	InitNeuralNetwork();
+	if( m_type == ClientType.CREATE || m_type == ClientType.PLAY )
+	{
+		InitNeuralNetwork();
+	}
 
 	ResizeElements();
 	
@@ -354,6 +358,8 @@ var m_nextLevelTimerCount = 2; // 2 sesconds
 var g_now = new Date().getTime();
 var m_lastDrawTime = g_now;
 
+var g_previewNumber = 0;
+var g_previewDataCounter = 0;
 function Animate()
 {
 	var dt = 1/60.0;
@@ -499,36 +505,41 @@ function Draw()
 			ctx.strokeStyle = m_darkBlue;
 			if( m_pPixelX.length > 0 )
 			{
-				ctx.lineWidth = window.devicePixelRatio * 5;
-				ctx.save();
-				ctx.beginPath();
-				ctx.moveTo( m_pPixelX[0], m_pPixelY[0] );
-				for( var i = 0; i < m_pPixelX.length; i++ )
-				{
-					ctx.lineTo( m_pPixelX[i], m_pPixelY[i] );
-				}
-				ctx.stroke();
-				ctx.restore();
+				DrawPlayerNumber( ctx, m_pPixelX, m_pPixelY, 1.0 );
 			}
 			
 			// draw results
-			for( var buttonIndex = m_resultButtonIndex; buttonIndex < m_pMainButtons.length; buttonIndex++	)
+			if( m_pReverseInput && m_pReverseInput.length > 0 )
 			{
-				var button = m_pMainButtons[buttonIndex];
-				var size = Math.floor(( button.m_drawWidth ) / m_numPixels);
-				var startX = button.m_drawX + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
-				var startY = button.m_drawY + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
-				for( var i = 0; i < m_pReverseInput[0].length; i++	)
+				for( var buttonIndex = m_resultButtonIndex; buttonIndex < m_pMainButtons.length; buttonIndex++	)
 				{
-					var x = i % m_numPixels;
-					var y = Math.floor( i / m_numPixels );
-					
-					var value = ( m_pReverseInput[buttonIndex - m_resultButtonIndex][i] );
-					value = Math.floor( value * 255 );
-					ctx.fillStyle = "rgba("+value+", "+value+", "+value+","+1.0+")"
-					ctx.fillRect( startX +  y * size, startY + x * size, size, size );
+					var button = m_pMainButtons[buttonIndex];
+					var size = Math.floor(( button.m_drawWidth ) / m_numPixels);
+					var startX = button.m_drawX + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
+					var startY = button.m_drawY + ( ( button.m_drawWidth - ( size * m_numPixels ) ) / 2 );
+					for( var i = 0; i < m_pReverseInput[0].length; i++	)
+					{
+						var x = i % m_numPixels;
+						var y = Math.floor( i / m_numPixels );
+						
+						var value = ( m_pReverseInput[buttonIndex - m_resultButtonIndex][i] );
+						value = Math.floor( value * 255 );
+						ctx.fillStyle = "rgba("+value+", "+value+", "+value+","+1.0+")"
+						ctx.fillRect( startX +  y * size, startY + x * size, size, size );
+					}
 				}
 			}
+		}
+		else if( m_gameState == GameState.PREVIEW_DATA )
+		{
+			ctx.fillStyle = m_darkBlue;
+			ctx.strokeStyle = m_darkBlue;
+			
+			ctx.save();
+			DrawPlayerNumber( ctx, pTrainingDrawings[g_previewNumber][g_previewDataCounter][0], pTrainingDrawings[g_previewNumber][g_previewDataCounter][1], 1.0 );
+			ctx.restore();
+			g_previewDataCounter++;
+			g_previewDataCounter %= pTrainingDrawings[g_previewNumber].length;
 		}
 		
 		var d2 = new Date();
@@ -554,6 +565,21 @@ function Draw()
 
     // this line below unlocks super fast framrate on browsers, but not on mobile which is why its commented out
 	//window.requestAnimationFrame(draw, canvas); //???
+}
+
+function DrawPlayerNumber( ctx, pPixelX, pPixelY, scale )
+{
+	ctx.lineWidth = window.devicePixelRatio * 5;
+	ctx.save();
+	ctx.beginPath();
+	ctx.moveTo( pPixelX[0] * scale, pPixelY[0] * scale );
+	for( var i = 0; i < pPixelX.length; i++ )
+	{
+		ctx.lineTo( pPixelX[i] * scale, pPixelY[i] * scale );
+	}
+	ctx.stroke();
+	ctx.restore();
+
 }
 
 // Call ReSize() when the screen size changes or the phone orientation changes:
@@ -664,31 +690,52 @@ function DrawNumber( x, y )
 	}
 }
 
-function CalculateNumberSquares()
+function LogNumber()
 {
-	if( m_pPixelX.length > 0 )
+	var pString = "[";
+	pString += "[";
+	for( var i = 0; i < m_pPixelX.length; i++ )
+	{
+		pString += m_pPixelX[i] + ",";
+	}
+	pString = pString.slice(0, -1);
+	pString += "],";
+	
+	pString += "[";
+	for( var i = 0; i < m_pPixelY.length; i++ )
+	{
+		pString += m_pPixelY[i] + ",";
+	}
+	pString = pString.slice(0, -1);
+	pString += "]]";
+	log(pString);
+}
+
+function CalculateNumberSquares( pPixelX, pPixelY )
+{
+	if( pPixelX.length > 0 )
 	{
 		// grab bounds
 		var minX, minY, maxX, maxY;
-		minX = maxX = m_pPixelX[0];
-		minY = maxY = m_pPixelY[0];
-		for( var i = 1; i < m_pPixelX.length; i++ )
+		minX = maxX = pPixelX[0];
+		minY = maxY = pPixelY[0];
+		for( var i = 1; i < pPixelX.length; i++ )
 		{
-			if( m_pPixelX[i] < minX )
+			if( pPixelX[i] < minX )
 			{
-				minX = m_pPixelX[i];
+				minX = pPixelX[i];
 			}
-			if( m_pPixelX[i] > maxX )
+			if( pPixelX[i] > maxX )
 			{
-				maxX = m_pPixelX[i];
+				maxX = pPixelX[i];
 			}
-			if( m_pPixelY[i] < minY )
+			if( pPixelY[i] < minY )
 			{
-				minY = m_pPixelY[i];
+				minY = pPixelY[i];
 			}
-			if( m_pPixelY[i] > maxY )
+			if( pPixelY[i] > maxY )
 			{
-				maxY = m_pPixelY[i];
+				maxY = pPixelY[i];
 			}
 		}
 	}
@@ -708,44 +755,69 @@ function CalculateNumberSquares()
 	var offsetX = Math.floor( ( ( scale - diffX ) * m_numPixels ) / ( 2 * scale ) );
 	var offsetY = Math.floor( ( ( scale - diffY ) * m_numPixels ) / ( 2 * scale ) );
 	
+	var ppPixels = [];
+	for( var i = 0; i < m_numPixels; i++ )
+	{
+		ppPixels[i] = [];
+		for( var j = 0; j < m_numPixels; j++ )
+		{
+			ppPixels[i][j] = 0;
+		}
+	}
+	
 	// now calculate squares
 	var squareX, squareY;
 	var drawXBlockSize = ( m_drawX * m_blockSize );
 	var drawYBlockSize = ( m_drawY * m_blockSize );
 	var blockSize = ( m_blockSize * m_blocksPerPixel );
-	for( var i = 0; i < m_pPixelX.length - 1; i++ )
+	for( var i = 0; i < pPixelX.length - 1; i++ )
 	{
-		var pixelX1 = m_pPixelX[i] - minX;
-		var pixelY1 = m_pPixelY[i] - minY;
-		var pixelX2 = m_pPixelX[i+1] - minX;
-		var pixelY2 = m_pPixelY[i+1] - minY;
+		var pixelX1 = pPixelX[i] - minX;
+		var pixelY1 = pPixelY[i] - minY;
+		var pixelX2 = pPixelX[i+1] - minX;
+		var pixelY2 = pPixelY[i+1] - minY;
 		
-		AddLine( scale, offsetX, offsetY, pixelX1, pixelY1, pixelX2, pixelY2 );
+		AddLine( ppPixels, scale, offsetX, offsetY, pixelX1, pixelY1, pixelX2, pixelY2 );
 	}
 	
 	m_pInput.length = 0;
 	var pString = "[";
 	for( var i = 0; i < m_numPixels; i++ )
 	{
-		for( var j = 0; j < m_numPixels; j++ )
+ 		for( var j = 0; j < m_numPixels; j++ )
 		{
-			if( m_ppPixels[i][j] > 1 )
+			if( ppPixels[i][j] > 1 )
 			{
-				m_ppPixels[i][j] = 1;
+				ppPixels[i][j] = 1;
 			}
 			if(!( i == 0 && j == 0 ))
 			{
 				pString += ", ";
 			}
-			pString += m_ppPixels[i][j];
-			m_pInput.push(m_ppPixels[i][j]);
+			pString += ppPixels[i][j];
+			m_pInput.push(ppPixels[i][j]);
 		}
 	}
 	pString += "],";
-	log ( pString );
+	//log( pString );
+	
+	return ppPixels;
 }
 
-function AddLine( scale, offsetX, offsetY, x, y, prevX, prevY )
+function ConvertToPixelArray( ppPixels )
+{
+	var pPixelArray = [];
+	for( var i = 0; i < m_numPixels; i++ )
+	{
+		for( var j = 0; j < m_numPixels; j++ )
+		{
+			pPixelArray.push( ppPixels[i][j] );
+		}
+	}
+	return pPixelArray;
+}
+
+function AddLine( ppPixels, scale, offsetX, offsetY, x, y, prevX, prevY )
 {
 	var diffX = x - prevX;
 	var diffY = y - prevY;
@@ -773,7 +845,7 @@ function AddLine( scale, offsetX, offsetY, x, y, prevX, prevY )
 		ratioX = diffX / Math.abs(diffY);
 	}
 	
-	log( "(" + x + ", " + y + ") (" + prevX + ", " + prevY + ") diffX " + diffX + " diffY " + diffY + " largestDiff " + largestDiff + " ratioX " + ratioX + " ratioY " + ratioY );
+	//log( "(" + x + ", " + y + ") (" + prevX + ", " + prevY + ") diffX " + diffX + " diffY " + diffY + " largestDiff " + largestDiff + " ratioX " + ratioX + " ratioY " + ratioY );
 	
 	//log( "DrawNumber(" + x + "," + y + ") pixelX " + pixelX + " pixelY " + pixelY );
 	
@@ -782,11 +854,11 @@ function AddLine( scale, offsetX, offsetY, x, y, prevX, prevY )
 		var cx = prevX + ( i * ratioX );
 		var cy = prevY + ( i * ratioY );
 		
-		AddSquare( scale, offsetX, offsetY, cx, cy );
+		AddSquare( ppPixels, scale, offsetX, offsetY, cx, cy );
 	}
 }
 
-function AddSquare( scale, offsetX, offsetY, pixelX, pixelY )
+function AddSquare( ppPixels, scale, offsetX, offsetY, pixelX, pixelY )
 {
 	var squareX = Math.floor( ( pixelX / scale ) * m_numPixels ) + offsetX;
 	var squareY = Math.floor( ( pixelY / scale ) * m_numPixels ) + offsetY;
@@ -800,29 +872,30 @@ function AddSquare( scale, offsetX, offsetY, pixelX, pixelY )
 		squareY = m_numPixels-1;
 	}
 	
-	var pencilStrength = 0.35;
-	var strength2 = 0.25;
-	var strength3 = 0.15;
+	var pencilStrength = 1.0;
+	var strength2 = 0.03;
+	var strength3 = 0.015;
 	
-	AddPixel( squareX, squareY, pencilStrength );
+	AddPixel( ppPixels, squareX, squareY, pencilStrength );
 	
-	AddPixel( squareX+1, squareY, pencilStrength * strength2 );
-	AddPixel( squareX-1, squareY, pencilStrength * strength2 );
-	AddPixel( squareX, squareY+1, pencilStrength * strength2 );
-	AddPixel( squareX, squareY-1, pencilStrength * strength2 );
+	AddPixel( ppPixels, squareX+1, squareY, pencilStrength * strength2 );
+	AddPixel( ppPixels, squareX-1, squareY, pencilStrength * strength2 );
+	AddPixel( ppPixels, squareX, squareY+1, pencilStrength * strength2 );
+	AddPixel( ppPixels, squareX, squareY-1, pencilStrength * strength2 );
 	
-	AddPixel( squareX+1, squareY+1, pencilStrength * strength3 );
-	AddPixel( squareX-1, squareY-1, pencilStrength * strength3 );
-	AddPixel( squareX-1, squareY+1, pencilStrength * strength3 );
-	AddPixel( squareX+1, squareY-1, pencilStrength * strength3 );
+	AddPixel( ppPixels, squareX+1, squareY+1, pencilStrength * strength3 );
+	AddPixel( ppPixels, squareX-1, squareY-1, pencilStrength * strength3 );
+	AddPixel( ppPixels, squareX-1, squareY+1, pencilStrength * strength3 );
+	AddPixel( ppPixels, squareX+1, squareY-1, pencilStrength * strength3 );
+	
 }
 
-function AddPixel( x, y, value )
+function AddPixel( ppPixels, x, y, value )
 {
 	if( ( x >= 0 && x < m_numPixels ) &&
 		( y >= 0 && y <= m_numPixels ) )
 	{
-		m_ppPixels[x][y] += value;
+		ppPixels[x][y] += value;
 	}
 }
 
@@ -925,7 +998,8 @@ function PassInput( event, key, x, y )
 			g_mouseDown[key] = false;
 			g_mouseHit[key] = false;
 			
-			CalculateNumberSquares();
+			LogNumber();
+			m_ppPixels = CalculateNumberSquares( m_pPixelX, m_pPixelY );
 			
 			if( m_type != ClientType.CREATE )
 			{
@@ -997,9 +1071,9 @@ function Test()
 	var output;
 	
 	var input = [[0,0], [0,1], [1,0], [1,1]];
-	var ideals = [[1,1], [1,0], [0,1], [0,0]];
+	var targets = [[1,1], [1,0], [0,1], [0,0]];
 	
-	nn.TrainNetwork( input, ideals );
+	nn.TrainNetwork( input, targets );
 	
 	log( nn.ForwardPropagation( [0,0] ) );
 	log( nn.ForwardPropagation( [0,1] ) );
@@ -1012,10 +1086,11 @@ function Test()
 var ClientType = {
 	"PLAY": 0,
 	"TRAIN": 1,
-	"CREATE": 2
+	"CREATE": 2,
+	"DATA_TEST": 3
 };
 
-
+var g_numTraining = 109;
 var m_type = ClientType.PLAY; // 0 - play, 1 train, 2 create training set
 function InitNeuralNetwork()
 {
@@ -1025,27 +1100,29 @@ function InitNeuralNetwork()
 	var output;
 	
 	var input = [];
-	var ideals = [];
+	var targets = [];
 	
 	if( !m_useMNIST )
 	{
-		for( var i = 0; i < 200; i++ )
+		for( var i = 0; i < g_numTraining; i++ )
 		{
 			for( var j = 0; j < 10; j++ )
 			{
-				input.push( pTrainingNumbers[j][i] );
+				var ppPixels = CalculateNumberSquares( pTrainingDrawings[j][i][0], pTrainingDrawings[j][i][1] );
+				var pPixelArray = ConvertToPixelArray( ppPixels );
+				input.push( pPixelArray );
 			}
 			
-			ideals.push( [1,0,0,0,0,0,0,0,0,0] );
-			ideals.push( [0,1,0,0,0,0,0,0,0,0] );
-			ideals.push( [0,0,1,0,0,0,0,0,0,0] );
-			ideals.push( [0,0,0,1,0,0,0,0,0,0] );
-			ideals.push( [0,0,0,0,1,0,0,0,0,0] );
-			ideals.push( [0,0,0,0,0,1,0,0,0,0] );
-			ideals.push( [0,0,0,0,0,0,1,0,0,0] );
-			ideals.push( [0,0,0,0,0,0,0,1,0,0] );
-			ideals.push( [0,0,0,0,0,0,0,0,1,0] );
-			ideals.push( [0,0,0,0,0,0,0,0,0,1] );
+			targets.push( [1,0,0,0,0,0,0,0,0,0] );
+			targets.push( [0,1,0,0,0,0,0,0,0,0] );
+			targets.push( [0,0,1,0,0,0,0,0,0,0] );
+			targets.push( [0,0,0,1,0,0,0,0,0,0] );
+			targets.push( [0,0,0,0,1,0,0,0,0,0] );
+			targets.push( [0,0,0,0,0,1,0,0,0,0] );
+			targets.push( [0,0,0,0,0,0,1,0,0,0] );
+			targets.push( [0,0,0,0,0,0,0,1,0,0] );
+			targets.push( [0,0,0,0,0,0,0,0,1,0] );
+			targets.push( [0,0,0,0,0,0,0,0,0,1] );
 		}
 	}
 	
@@ -1053,57 +1130,21 @@ function InitNeuralNetwork()
 	{
 		if( m_useMNIST )
 		{
-			
+			for( var i = 0; i < pMNISTTrainingData.length; i++ )
+			{
+				for( var j = 0; j < pMNISTTrainingData[i].length; j++ )
+				{
+					pMNISTTrainingData[i][j] = pMNISTTrainingData[i][j] / 255.0;
+				}
+			}
+
+			TrainNeuralNetwork( pMNISTTrainingData, pMNISTTrainingTargets );
 		}
 		else
 		{
-			nn.LoadWeights( pNetworkWeights );
+			//nn.LoadWeights( pNetworkWeights );
+			TrainNeuralNetwork( input, targets );
 		}
-
-		var trainingSetPasses = 0;
-		var lowestPercent = 100;
-		do
-		{
-			if( m_useMNIST )
-			{
-				for( var i = 0; i < pMNISTTrainingData.length; i++ )
-				{
-					for( var j = 0; j < pMNISTTrainingData[i].length; j++ )
-					{
-						pMNISTTrainingData[i][j] = pMNISTTrainingData[i][j] / 255.0;
-					}
-				}
-				
-				nn.TrainNetwork( pMNISTTrainingData, pMNISTTrainingTargets, 10 );
-			}
-			else
-			{
-				nn.TrainNetwork( input, ideals, 1 );
-				
-				lowestPercent = 100;
-				for( var j = 0; j < 10; j++ )
-				{
-					var counter = 0;
-					for( var i = 0; i < pTrainingNumbers[j].length; i++ )
-					{
-						var result = nn.ForwardPropagation( pTrainingNumbers[j][i] );
-						if( result[j] > 0.75 )
-						{
-							counter++;
-						}
-					}
-					var percent = counter / pTrainingNumbers[j].length;//Math.floor( ( counter / pTrainingNumbers[j].length ) * 10000 ) / 100;
-					log( "Number " + j + " " + percent + "%" );
-					if( lowestPercent > percent )
-					{
-						lowestPercent = percent;
-					}
-				}
-				trainingSetPasses++;
-				log( "lowestPercent " + lowestPercent + " passes " + trainingSetPasses );
-			}
-		}
-		while( lowestPercent < 99.9 && trainingSetPasses < 200 );
 	}
 	else
 	{
@@ -1119,28 +1160,27 @@ function InitNeuralNetwork()
 	
 	if( m_useMNIST )
 	{
-		ideals.push( [1,0,0,0,0,0,0,0,0,0] );
-		ideals.push( [0,1,0,0,0,0,0,0,0,0] );
-		ideals.push( [0,0,1,0,0,0,0,0,0,0] );
-		ideals.push( [0,0,0,1,0,0,0,0,0,0] );
-		ideals.push( [0,0,0,0,1,0,0,0,0,0] );
-		ideals.push( [0,0,0,0,0,1,0,0,0,0] );
-		ideals.push( [0,0,0,0,0,0,1,0,0,0] );
-		ideals.push( [0,0,0,0,0,0,0,1,0,0] );
-		ideals.push( [0,0,0,0,0,0,0,0,1,0] );
-		ideals.push( [0,0,0,0,0,0,0,0,0,1] );
+		targets.push( [1,0,0,0,0,0,0,0,0,0] );
+		targets.push( [0,1,0,0,0,0,0,0,0,0] );
+		targets.push( [0,0,1,0,0,0,0,0,0,0] );
+		targets.push( [0,0,0,1,0,0,0,0,0,0] );
+		targets.push( [0,0,0,0,1,0,0,0,0,0] );
+		targets.push( [0,0,0,0,0,1,0,0,0,0] );
+		targets.push( [0,0,0,0,0,0,1,0,0,0] );
+		targets.push( [0,0,0,0,0,0,0,1,0,0] );
+		targets.push( [0,0,0,0,0,0,0,0,1,0] );
+		targets.push( [0,0,0,0,0,0,0,0,0,1] );
 
 	}
 	else
 	{
 	}
 
-	//ideals[0] = [0.01567028417839327, 0.000011936902844202932, 0.022398464213300665, 0.00015969860469946463, 0.00028629101363449955, 0.00005170126269103917, 0.04444998540660994, 0.000040972374718477764, 0.6426484174774935, 0.000007715375757012883];
 	for( var i = 0; i < 10; i++ )
 	{
 		var lowest = 0;
 		var highest = 0;
-		var pReverseResult = nn.ReverseForwardPropagation( ideals[i] );
+		var pReverseResult = nn.ReverseForwardPropagation( targets[i] );
 		for( var j = 0; j < pReverseResult.length; j++ )
 		{
 			if( pReverseResult[j] < lowest )
@@ -1195,6 +1235,56 @@ function InitNeuralNetwork()
 	}
 	
 	var stop = 0;
+
+}
+
+function TrainNeuralNetwork( input, target )
+{
+	var trainingSetPasses = 0;
+	var lowestPercent = 100;
+	do
+	{
+		if( m_useMNIST )
+		{
+			
+			nn.TrainNetwork( input, target, 10 );
+		}
+		else
+		{
+			nn.TrainNetwork( input, target, 1 );
+			
+			lowestPercent = 100;
+			
+			var pCorrectCounter = [];
+			for( var j = 0; j < 10; j++ )
+			{
+				pCorrectCounter[j] = 0;
+			}
+			for( var i = 0; i < input.length; i++ )
+			{
+				var result = nn.ForwardPropagation( input[i] );
+				for( var j = 0; j < 10; j++ )
+				{
+					if( target[i][j] > 0 && result[j] > 0.75 )
+					{
+						pCorrectCounter[j]++;
+					}
+				}
+			}
+			for( var j = 0; j < 10; j++ )
+			{
+				var percent = ( pCorrectCounter[j] * 100 ) / g_numTraining;
+				log( "Number " + j + " " + percent + "%" );
+				if( lowestPercent > percent )
+				{
+					lowestPercent = percent;
+				}
+			}
+			trainingSetPasses++;
+			log( "lowestPercent " + lowestPercent + " passes " + trainingSetPasses );
+		}
+	}
+	while( lowestPercent < 100 && trainingSetPasses < 200 );
 
 }
 
