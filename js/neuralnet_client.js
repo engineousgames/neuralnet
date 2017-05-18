@@ -523,7 +523,7 @@ function Draw()
 						var y = Math.floor( i / m_numPixels );
 						
 						var value = ( m_pReverseInput[buttonIndex - m_resultButtonIndex][i] );
-						value = Math.floor( value * 255 );
+						//value = Math.floor( value * 255 );
 						ctx.fillStyle = "rgba("+value+", "+value+", "+value+","+1.0+")"
 						ctx.fillRect( startX +  y * size, startY + x * size, size, size );
 					}
@@ -873,8 +873,8 @@ function AddSquare( ppPixels, scale, offsetX, offsetY, pixelX, pixelY )
 	}
 	
 	var pencilStrength = 1.0;
-	var strength2 = 0.03;
-	var strength3 = 0.015;
+	var strength2 = 0.02;
+	var strength3 = 0.01;
 	
 	AddPixel( ppPixels, squareX, squareY, pencilStrength );
 	
@@ -1003,7 +1003,8 @@ function PassInput( event, key, x, y )
 			
 			if( m_type != ClientType.CREATE )
 			{
-				m_pResults = nn.ForwardPropagation( m_pInput );
+				var pPixelArray = ConvertToPixelArray( m_ppPixels );
+				m_pResults = nn.ForwardPropagation( pPixelArray );
 				log( m_pResults );
 			}
 			
@@ -1090,7 +1091,7 @@ var ClientType = {
 	"DATA_TEST": 3
 };
 
-var g_numTraining = 109;
+var g_numTraining = 146;
 var m_type = ClientType.PLAY; // 0 - play, 1 train, 2 create training set
 function InitNeuralNetwork()
 {
@@ -1180,22 +1181,31 @@ function InitNeuralNetwork()
 	{
 		var lowest = 0;
 		var highest = 0;
-		var pReverseResult = nn.ReverseForwardPropagation( targets[i] );
+		var average = 0;
+		var pReverseResult = nn.ReversePropagation( targets[i] );
 		for( var j = 0; j < pReverseResult.length; j++ )
 		{
 			if( pReverseResult[j] < lowest )
 			{
-				//lowest = pReverseResult[j];
-				pReverseResult[j] = 0;
+				lowest = pReverseResult[j];
+				//pReverseResult[j] = 0;
 			}
 			if( pReverseResult[j] > highest )
 			{
 				highest = pReverseResult[j];
 			}
+			average += pReverseResult[j];
 		}
+		average /= pReverseResult.length;
+		
 		for( var j = 0; j < pReverseResult.length; j++ )
 		{
-			pReverseResult[j] = ( pReverseResult[j] + Math.abs(lowest) ) / ( Math.abs( lowest ) + highest );
+			//pReverseResult[j] = ( pReverseResult[j] + Math.abs(lowest) ) / ( Math.abs( lowest ) + highest );
+			
+			pReverseResult[j] = Math.floor( ( pReverseResult[j] / ( highest - lowest ) ) * 255.0 );
+			
+			//j = int(((i) / (x_max - x_min)) * 255.0)
+			
 			//pReverseResult[j] = Sigmoid( pReverseResult[j] );
 		}
 		m_pReverseInput.push( pReverseResult );
@@ -1284,7 +1294,7 @@ function TrainNeuralNetwork( input, target )
 			log( "lowestPercent " + lowestPercent + " passes " + trainingSetPasses );
 		}
 	}
-	while( lowestPercent < 100 && trainingSetPasses < 200 );
+	while( /*lowestPercent < 100 && */trainingSetPasses < 10000 );
 
 }
 

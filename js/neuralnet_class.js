@@ -4,6 +4,8 @@ function Neuron()
 	this._weights = [];
 	this._bias = 1;
 	
+	this._totalWeights = 0;
+	
 	// Variables for backpropagation.
 	this._output = 0;
 	this._deltas = [];
@@ -18,6 +20,7 @@ function Neuron()
 		{
 			this._weights[i] = ( Math.random() * 2 ) - 1; // random # from -1 to 1
 		}
+		this.CalculateTotalWeights();
 	}
 
 	this.Sigmoid = function( z )
@@ -52,7 +55,16 @@ function Neuron()
 
 		// apply the sigmoid activation function
 		return this._output = this.Sigmoid(sum);
-
+	}
+	
+	// used in reverse propogation to figure out each weight's share of the result
+	this.CalculateTotalWeights = function()
+	{
+		this._totalWeights = 0;
+		for( var i = 0; i < this._weights.length; i++ )
+		{
+			this._totalWeights += this._weights[i];
+		}
 	}
 }
 
@@ -82,8 +94,9 @@ function NeuralNetwork()
 	// 0.45 - lowestPercent 99.16 passes 176
 	// 0.25 - 100+
 	
-	this._learningRate = 0.5; // 0.25 too slow. 0.75 too slow.
+	this._learningRate = 0.3; // 0.25 too slow. 0.75 too slow.
 	this._inputMultiplier = 10;
+	this._momentum = 0.7;
 	
 	this._layers = [];
 	
@@ -137,30 +150,39 @@ function NeuralNetwork()
 		return result;
 	}
 	
-	this.ReverseForwardPropagation = function( input )
+	this.ReversePropagation = function( input )
 	{
 		// clone the input so we can modify it as we propogate it through the array
 		var result = input.slice();
 		var result2 = [];
 
+		// start with the last last layer, moving toward the first layer
 		for(var i = this._layers.length-1; i >= 0; i--)
 		{
 			result2.length = 0;
 			var currentLayer = this._layers[i];
+			
+			// each weight in this layer points to a neuron in the previous layer
 			var numWeights = currentLayer._neurons[0]._weights.length;
+			// for all those neurons in the previous layer
 			for( var j = 0; j < numWeights; j++ )
 			{
 				var numResults = currentLayer._neurons.length;
 				for( var k = 0; k < numResults; k++ )
 				{
+					var neuronResult = result[k];
 					var neuron = currentLayer._neurons[k];
+					//neuronResult = neuron.ReverseSigmoid( neuronResult );
 					if( !result2[j] )
 					{
-						result2[j] = neuron._bias;
+						//neuronResult -= neuron._bias;
+						result2[j] = 0;
+						//result2[j] = neuron._bias;
 					}
-					result2[j] += neuron._weights[j] * result[k];
-
+					result2[j] += ( neuron._weights[j] * result[k] );
+//					result2[j] += ( ( neuron._weights[j] / neuron._totalWeights	) * neuronResult );
 				}
+				//result2[j] /= ( numResults );
 			}
 			result.length = 0;
 			for( var j = 0; j < result2.length; j++ )
@@ -281,7 +303,15 @@ function NeuralNetwork()
 					neuron._deltas[k] = this._learningRate * neuron._gradient * (this._layers[i-1] ? this._layers[i-1]._neurons[k]._output : input[k]);
 					
 					neuron._weights[k] += neuron._deltas[k];
+					if( neuron._prevDeltas.length > 0 )
+					{
+						neuron._weights[k] += neuron._prevDeltas[k] * this._momentum;
+					}
 				}
+				neuron._prevDeltas = neuron._deltas.slice();
+				
+				// for reverse propogation we want to know what all the weights that go into this neuron add up to
+				neuron.CalculateTotalWeights();
 			}
 		}
 		
